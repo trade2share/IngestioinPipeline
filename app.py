@@ -6,8 +6,8 @@ import time
 
 # Page configuration
 st.set_page_config(
-    page_title="Document Indexing Pipeline",
-    page_icon="📚",
+    page_title="Dokumenten-Indizierungs-Pipeline",
+    page_icon="",
     layout="wide"
 )
 
@@ -15,12 +15,12 @@ st.set_page_config(
 load_dotenv()
 
 def main():
-    st.title("📚 Document Indexing Pipeline")
+    st.title("Dokumenten-Indizierungs-Pipeline")
     st.markdown("---")
     
     # Sidebar for configuration
     with st.sidebar:
-        st.header("⚙️ Configuration")
+        st.header("Konfiguration")
         
         # Check if environment variables are set
         conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -31,48 +31,48 @@ def main():
         pinecone_index = os.getenv("PINECONE_INDEX_NAME")
         
         if conn_str and container:
-            st.success("✅ Azure Storage configured")
+            st.success("Azure Storage konfiguriert")
             st.info(f"Container: {container}")
         else:
-            st.error("❌ Azure Storage not configured")
-            st.warning("Please set AZURE_STORAGE_CONNECTION_STRING and AZURE_STORAGE_CONTAINER_NAME in your .env file")
+            st.error("Azure Storage nicht konfiguriert")
+            st.warning("Bitte AZURE_STORAGE_CONNECTION_STRING und AZURE_STORAGE_CONTAINER_NAME in Ihrer .env-Datei setzen")
         
         if azure_openai_key and azure_openai_endpoint:
-            st.success("✅ Azure OpenAI configured")
+            st.success("Azure OpenAI konfiguriert")
             st.info(f"Endpoint: {azure_openai_endpoint[:50]}...")
         else:
-            st.warning("⚠️ Azure OpenAI not configured")
+            st.warning("Azure OpenAI nicht konfiguriert")
         
         if pinecone_key and pinecone_index:
-            st.success("✅ Pinecone configured")
+            st.success("Pinecone konfiguriert")
             st.info(f"Index: {pinecone_index}")
         else:
-            st.warning("⚠️ Pinecone not configured")
+            st.warning("Pinecone nicht konfiguriert")
     
     # Main content area
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.header("🚀 Start Indexing")
+        st.header("Pipeline starten")
         st.markdown("""
-        This pipeline will:
-        1. Load documents from Azure Blob Storage
-        2. Process and split documents into chunks
-        3. Create embeddings and store in vector database
+        Die Pipeline wird:
+        1. Dokumente aus Azure Blob Storage laden
+        2. Dokumente in Chunks teilen
+        3. Embeddings erstellen und in die Vektordatenbank speichern
         """)
         
         # Indexing button
-        if st.button("🔄 Start Indexing", type="primary", use_container_width=True):
+        if st.button("Pipeline starten", type="primary", use_container_width=True):
             if not conn_str or not container:
-                st.error("❌ Cannot start indexing: Azure Storage not configured")
+                st.error("Indizierung kann nicht gestartet werden: Azure Storage nicht konfiguriert")
                 return
             
             if not azure_openai_key or not azure_openai_endpoint:
-                st.error("❌ Cannot start indexing: Azure OpenAI not configured")
+                st.error("Indizierung kann nicht gestartet werden: Azure OpenAI nicht konfiguriert")
                 return
             
             if not pinecone_key or not pinecone_index:
-                st.error("❌ Cannot start indexing: Pinecone not configured")
+                st.error("Indizierung kann nicht gestartet werden: Pinecone nicht konfiguriert")
                 return
             
             # Create progress containers
@@ -85,71 +85,71 @@ def main():
                 status_text = st.empty()
             
             with status_container:
-                st.info("🔄 Starting indexing process...")
+                st.info("🔄 Indizierungsprozess wird gestartet...")
             
             try:
                 # Step 1: Load documents
-                status_text.text("📥 Loading documents from Azure Blob Storage...")
+                status_text.text("Dokumente werden aus Azure Blob Storage geladen...")
                 progress_bar.progress(25)
                 
                 docs = load_documents()
-                st.success(f"✅ Loaded {len(docs)} documents")
+                st.success(f"{len(docs)} Dokumente geladen")
                 
                 # Step 2: Split documents
-                status_text.text("✂️ Splitting documents into chunks...")
+                status_text.text("Dokumente werden in Chunks aufgeteilt...")
                 progress_bar.progress(50)
                 
                 chunks = split_documents(docs)
-                st.success(f"✅ Created {len(chunks)} chunks")
+                st.success(f"{len(chunks)} Chunks erstellt")
                 
                 # Step 3: Create embeddings and store in vector database
-                status_text.text("🧠 Creating embeddings and storing in vector database...")
+                status_text.text("Embeddings werden erstellt und in Vektordatenbank gespeichert...")
                 progress_bar.progress(75)
                 
                 chunk_and_vectorstore(chunks)
-                st.success("✅ Documents indexed in vector database")
+                st.success("Dokumente in Vektordatenbank indiziert")
                 
                 # Step 4: Complete
-                status_text.text("✅ Indexing completed!")
+                status_text.text("Indizierung abgeschlossen!")
                 progress_bar.progress(100)
                 
                 # Final results
                 with results_container:
-                    st.success("🎉 Indexing completed successfully!")
+                    st.success("Indizierung erfolgreich abgeschlossen!")
                     
                     # Display statistics
                     col_a, col_b, col_c = st.columns(3)
                     with col_a:
-                        st.metric("Documents", len(docs))
+                        st.metric("Dokumente", len(docs))
                     with col_b:
                         st.metric("Chunks", len(chunks))
                     with col_c:
-                        st.metric("Status", "✅ Complete")
+                        st.metric("Status", "✅ Abgeschlossen")
                     
                     # Show sample chunks
                     if chunks:
-                        st.subheader("📄 Sample Chunks")
+                        st.subheader("Beispiel-Chunks")
                         for i, chunk in enumerate(chunks[:3]):  # Show first 3 chunks
-                            with st.expander(f"Chunk {i+1} (Length: {len(chunk.page_content)} chars)"):
+                            with st.expander(f"Chunk {i+1} (Länge: {len(chunk.page_content)} Zeichen)"):
                                 st.text(chunk.page_content[:500] + "..." if len(chunk.page_content) > 500 else chunk.page_content)
                 
-                status_text.text("✅ Indexing completed!")
+                status_text.text("✅ Indizierung abgeschlossen!")
                 
             except Exception as e:
-                st.error(f"❌ Error during indexing: {str(e)}")
-                status_text.text("❌ Indexing failed!")
+                st.error(f"❌ Fehler während der Indizierung: {str(e)}")
+                status_text.text("❌ Indizierung fehlgeschlagen!")
     
     with col2:
-        st.header("📊 Pipeline Status")
+        st.header("Pipeline-Status")
         
         # Check system status
-        st.subheader("System Status")
+        st.subheader("System-Status")
         
         # Check Azure connection
         if conn_str and container:
-            st.success("🟢 Azure Storage: Connected")
+            st.success("Azure Storage: Verbunden")
         else:
-            st.error("🔴 Azure Storage: Not configured")
+            st.error("Azure Storage: Nicht konfiguriert")
         
         # Check required packages
         try:
@@ -157,38 +157,23 @@ def main():
             import langchain_openai
             import langchain_pinecone
             import pinecone
-            st.success("🟢 Dependencies: All installed")
+            st.success("Abhängigkeiten: Alle installiert")
         except ImportError as e:
-            st.error(f"🔴 Dependencies: Missing - {str(e)}")
+            st.error(f"Abhängigkeiten: Fehlend - {str(e)}")
         
         # Check API keys
         if azure_openai_key and azure_openai_endpoint:
-            st.success("🟢 Azure OpenAI: Configured")
+            st.success("Azure OpenAI: Konfiguriert")
         else:
-            st.error("🔴 Azure OpenAI: Not configured")
+            st.error("Azure OpenAI: Nicht konfiguriert")
         
         if pinecone_key and pinecone_index:
-            st.success("🟢 Pinecone: Configured")
+            st.success("Pinecone: Konfiguriert")
         else:
-            st.error("🔴 Pinecone: Not configured")
+            st.error("Pinecone: Nicht konfiguriert")
         
-        st.subheader("📈 Statistics")
-        st.info("Run indexing to see statistics")
         
-        # Instructions
-        st.subheader("📋 Instructions")
-        st.markdown("""
-        1. Ensure your `.env` file contains:
-           - `AZURE_STORAGE_CONNECTION_STRING`
-           - `AZURE_STORAGE_CONTAINER_NAME`
-           - `AZURE_OPENAI_API_KEY`
-           - `AZURE_OPENAI_ENDPOINT`
-           - `PINECONE_API_KEY`
-           - `PINECONE_INDEX_NAME`
-        2. Click "Start Indexing" to begin
-        3. Monitor progress in real-time
-        4. View results and statistics
-        """)
+        
 
 if __name__ == "__main__":
     main()

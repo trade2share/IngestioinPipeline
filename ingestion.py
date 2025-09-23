@@ -51,7 +51,7 @@ def split_documents(docs):
     chunks = splitter.split_documents(docs)
     return chunks
 
-def chunk_and_vectorstore(chunks, batch_size=5, delay_between_batches=2):
+def chunk_and_vectorstore(chunks, batch_size=200, delay_between_batches=1):
     """
     Process chunks in batches to avoid rate limits
     
