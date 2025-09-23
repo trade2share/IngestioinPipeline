@@ -81,13 +81,27 @@ def chunk_and_vectorstore(chunks, batch_size=5, delay_between_batches=2):
 
     pc = Pinecone(api_key=api_key)
     index = pc.Index(name=index_name)
+
+    # --- HINZUGEFÜGTER CODE ZUM ZURÜCKSETZEN DES INDEX ---
+    print(f"🧹 Versuche, den Index '{index_name}' vollständig zu leeren...")
+    try:
+        index.delete(delete_all=True)
+        print(f"✅ Index '{index_name}' wurde erfolgreich zurückgesetzt.")
+        # Eine kurze Pause, um sicherzustellen, dass der Löschvorgang serverseitig abgeschlossen ist.
+        time.sleep(5) 
+    except Exception as e:
+        print(f"❌ Fehler beim Zurücksetzen des Index: {e}")
+        # Beendet die Funktion, wenn das Leeren fehlschlägt, um inkonsistente Daten zu vermeiden.
+        return 0
+    # --- ENDE DES HINZUGEFÜGTEN CODES ---
+
     vectorstore = PineconeVectorStore(index=index, embedding=embeddings)
     
     total_chunks = len(chunks)
     processed_chunks = 0
     
-    print(f"🚀 Starting batch processing of {total_chunks} chunks...")
-    print(f"📦 Batch size: {batch_size}, Delay: {delay_between_batches}s")
+    print(f"🚀 Starte die Stapelverarbeitung von {total_chunks} Chunks...")
+    print(f"📦 Batch-Größe: {batch_size}, Verzögerung: {delay_between_batches}s")
     
     # Process chunks in batches
     for i in range(0, total_chunks, batch_size):
@@ -95,7 +109,7 @@ def chunk_and_vectorstore(chunks, batch_size=5, delay_between_batches=2):
         batch_num = (i // batch_size) + 1
         total_batches = (total_chunks + batch_size - 1) // batch_size
         
-        print(f"\n📦 Processing batch {batch_num}/{total_batches} ({len(batch)} chunks)")
+        print(f"\n📦 Verarbeite Batch {batch_num}/{total_batches} ({len(batch)} Chunks)")
         
         max_retries = 3
         retry_count = 0
@@ -105,30 +119,30 @@ def chunk_and_vectorstore(chunks, batch_size=5, delay_between_batches=2):
                 # Process the batch
                 vectorstore.add_documents(batch)
                 processed_chunks += len(batch)
-                print(f"✅ Batch {batch_num} completed successfully ({processed_chunks}/{total_chunks} total)")
+                print(f"✅ Batch {batch_num} erfolgreich abgeschlossen ({processed_chunks}/{total_chunks} gesamt)")
                 break
                 
             except RateLimitError as e:
                 retry_count += 1
                 wait_time = 60 * retry_count  # Exponential backoff
-                print(f"⚠️  Rate limit hit! Waiting {wait_time}s before retry {retry_count}/{max_retries}")
+                print(f"⚠️  Rate-Limit erreicht! Warte {wait_time}s vor Wiederholung {retry_count}/{max_retries}")
                 time.sleep(wait_time)
                 
             except Exception as e:
-                print(f"❌ Error in batch {batch_num}: {str(e)}")
+                print(f"❌ Fehler in Batch {batch_num}: {str(e)}")
                 retry_count += 1
                 if retry_count >= max_retries:
-                    print(f"💥 Failed to process batch {batch_num} after {max_retries} retries")
+                    print(f"💥 Fehler bei der Verarbeitung von Batch {batch_num} nach {max_retries} Versuchen")
                     break
                 time.sleep(5)
         
         # Wait between batches (except for the last batch)
         if i + batch_size < total_chunks:
-            print(f"⏳ Waiting {delay_between_batches}s before next batch...")
+            print(f"⏳ Warte {delay_between_batches}s vor dem nächsten Batch...")
             time.sleep(delay_between_batches)
     
-    print(f"\n🎉 Batch processing completed!")
-    print(f"📊 Successfully processed: {processed_chunks}/{total_chunks} chunks")
+    print(f"\n🎉 Stapelverarbeitung abgeschlossen!")
+    print(f"📊 Erfolgreich verarbeitet: {processed_chunks}/{total_chunks} Chunks")
     
     return processed_chunks
 

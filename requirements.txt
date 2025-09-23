@@ -4,7 +4,7 @@ langchain-community==0.3.25
 langchain-core==0.3.75
 langchain-openai==0.3.27
 langchain-pinecone==0.2.11
-langchain-docling==1.0.0
+docling==1.20.0
 
 # Streamlit Web App
 streamlit==1.44.0
