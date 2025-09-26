@@ -83,12 +83,21 @@ def chunk_and_vectorstore(chunks, batch_size=200, delay_between_batches=1):
     index = pc.Index(name=index_name)
 
     # --- HINZUGEFÜGTER CODE ZUM ZURÜCKSETZEN DES INDEX ---
-    print(f"🧹 Versuche, den Index '{index_name}' vollständig zu leeren...")
+    print(f"🧹 Prüfe Index '{index_name}' auf vorhandene Vektoren...")
     try:
-        index.delete(delete_all=True)
-        print(f"✅ Index '{index_name}' wurde erfolgreich zurückgesetzt.")
-        # Eine kurze Pause, um sicherzustellen, dass der Löschvorgang serverseitig abgeschlossen ist.
-        time.sleep(5) 
+        # Prüfe, ob der Index Vektoren enthält
+        stats = index.describe_index_stats()
+        total_vector_count = stats.get('total_vector_count', 0)
+        
+        if total_vector_count > 0:
+            print(f"📊 Index enthält {total_vector_count} Vektoren. Starte Zurücksetzung...")
+            index.delete(delete_all=True)
+            print(f"✅ Index '{index_name}' wurde erfolgreich zurückgesetzt.")
+            # Eine kurze Pause, um sicherzustellen, dass der Löschvorgang serverseitig abgeschlossen ist.
+            time.sleep(5)
+        else:
+            print(f"ℹ️  Index '{index_name}' ist bereits leer. Keine Zurücksetzung erforderlich.")
+            
     except Exception as e:
         print(f"❌ Fehler beim Zurücksetzen des Index: {e}")
         # Beendet die Funktion, wenn das Leeren fehlschlägt, um inkonsistente Daten zu vermeiden.
@@ -156,3 +165,5 @@ if __name__ == "__main__":
     print(f"Anzahl der Chunks: {len(chunks)}\n")
 
     chunk_and_vectorstore(chunks)
+
+    
