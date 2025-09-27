@@ -12,6 +12,10 @@ from pinecone import ServerlessSpec
 from langchain_core.documents import Document
 from openai import RateLimitError
 
+import tempfile
+from langchain_community.document_loaders import PyPDFLoader
+from azure.storage.blob import BlobServiceClient
+
 
 
 def load_env():
@@ -33,22 +37,72 @@ def load_azure_openai():
 
 
 def load_documents():
-    conn_str, container = load_env()
-    if not conn_str or not container:
+    conn_str, container_name = load_env()
+    if not conn_str or not container_name:
         raise ValueError("AZURE_STORAGE_CONNECTION_STRING and AZURE_STORAGE_CONTAINER_NAME must be set")
-    
-    loader = AzureBlobStorageContainerLoader(
-        conn_str=conn_str, container=container)
-    
-    # Load documents from Azure Blob Storage
-    docs = loader.load()
-    
-    return docs
+
+    print("Stelle Verbindung zum Azure Blob Storage her...")
+    blob_service_client = BlobServiceClient.from_connection_string(conn_str)
+    container_client = blob_service_client.get_container_client(container_name)
+
+    all_docs = []
+
+    for blob in container_client.list_blobs():
+        if not blob.name.lower().endswith(".pdf"):
+            print(f" überspringe Datei (kein PDF): {blob.name}")
+            continue
+
+        print(f"Verarbeite PDF: {blob.name}...")
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+            try:
+                blob_client = container_client.get_blob_client(blob)
+                downloader = blob_client.download_blob()
+                temp_file.write(downloader.readall())
+                temp_file_path = temp_file.name
+
+                loader = PyPDFLoader(temp_file_path)
+                pages = loader.load_and_split()
+                
+                # ✨ DAS I-TÜPFELCHEN: KORRIGIERE DIE QUELLE ✨
+                # Gehe durch jede geladene Seite und ersetze die temporäre Quelle
+                # durch den echten Dateinamen aus Azure.
+                for page in pages:
+                    page.metadata["source"] = blob.name
+                
+                all_docs.extend(pages)
+                print(f"✅ {blob.name} erfolgreich geladen ({len(pages)} Seiten mit korrekter Quelle).")
+
+            finally:
+                os.remove(temp_file.name)
+
+    return all_docs
 
 
-def split_documents(docs):
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+def split_documents(docs: list[Document]) -> list[Document]:
+    """
+    Teilt Dokumente in Chunks und reichert die Metadaten jedes Chunks an.
+    """
+    # 1. Dokumente aufteilen
+    splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
     chunks = splitter.split_documents(docs)
+    
+    print(f"Dokumente in {len(chunks)} Chunks aufgeteilt. Beginne Anreicherung...")
+
+    # 2. Durch die Chunks iterieren und ihre Metadaten direkt bearbeiten
+    for i, chunk in enumerate(chunks):
+        source = chunk.metadata.get('source', 'Unbekannte Quelle')
+        source_filename = os.path.basename(source)
+        page_num = chunk.metadata.get('page', chunk.metadata.get('page_number', 0))
+        
+        # Metadaten direkt im Chunk-Objekt aktualisieren
+        chunk.metadata['source_filename'] = source_filename
+        chunk.metadata['page_number'] = page_num + 1 if isinstance(page_num, int) else page_num
+        
+        # Eindeutige ID für den Chunk erstellen
+        chunk.metadata['chunk_id'] = f"{source_filename}_seite-{chunk.metadata['page_number']}_chunk-{i}"
+
+    print("✅ Anreicherung der Metadaten abgeschlossen.")
     return chunks
 
 def chunk_and_vectorstore(chunks, batch_size=200, delay_between_batches=1):
@@ -161,8 +215,6 @@ def chunk_and_vectorstore(chunks, batch_size=200, delay_between_batches=1):
 if __name__ == "__main__":
     docs = load_documents()
     chunks = split_documents(docs)
-    
-    print(f"Anzahl der Chunks: {len(chunks)}\n")
 
     chunk_and_vectorstore(chunks)
 
