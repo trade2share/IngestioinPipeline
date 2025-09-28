@@ -1,6 +1,8 @@
 import os
 import time
 from dotenv import load_dotenv
+import re
+import unicodedata
 
 from langchain_community.document_loaders import AzureBlobStorageContainerLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -13,16 +15,77 @@ from langchain_core.documents import Document
 from openai import RateLimitError
 
 import tempfile
-from langchain_community.document_loaders import PyPDFLoader
+
+from langchain_community.document_loaders import PyPDFium2Loader
 from azure.storage.blob import BlobServiceClient
 
 
+
+def sanitize_text(text: str) -> str:
+    """Normalize and clean text extracted from PDFs.
+
+    Fixes common issues:
+    - Compose Unicode to NFC so that combining marks become single codepoints (e.g., a + ¨ -> ä)
+    - Remove soft hyphens and join hyphenated line breaks
+    - Normalize non-breaking spaces
+    - Convert spacing diaeresis placed before/after vowels into proper umlauts
+    """
+    if not text:
+        return ""
+
+    # Normalize to NFC first (handles combining marks like a + U+0308)
+    cleaned = unicodedata.normalize("NFC", text)
+
+    # Remove zero-width characters that often appear in PDF extraction
+    cleaned = re.sub(r"[\u200B-\u200D\uFEFF]", "", cleaned)
+
+    # Remove soft hyphens and fix hyphenation across line breaks
+    cleaned = cleaned.replace("\u00AD", "")
+    cleaned = re.sub(r"(\w+)-\n(\w+)", r"\1\2", cleaned)
+
+    # Normalize non-breaking spaces to regular spaces
+    cleaned = cleaned.replace("\u00A0", " ")
+
+    # Map for German umlauts when diaeresis is extracted as a separate spacing char
+    umlaut_map = {"a": "ä", "o": "ö", "u": "ü", "A": "Ä", "O": "Ö", "U": "Ü"}
+
+    # Case 1: space + diaeresis before the vowel → replace with umlaut vowel
+    cleaned = re.sub(r"\s[\u00A8¨]\s?([AOUaou])", lambda m: umlaut_map.get(m.group(1), m.group(1)), cleaned)
+
+    # Case 2: vowel followed by space + diaeresis → replace with umlaut vowel
+    cleaned = re.sub(r"([AOUaou])\s[\u00A8¨]", lambda m: umlaut_map.get(m.group(1), m.group(1)), cleaned)
+
+    # Case 3: combining diaeresis U+0308 adjacent to vowel with optional space
+    cleaned = re.sub(r"([AOUaou])\s*\u0308", lambda m: umlaut_map.get(m.group(1), m.group(1)), cleaned)
+    cleaned = re.sub(r"\u0308\s*([AOUaou])", lambda m: umlaut_map.get(m.group(1), m.group(1)), cleaned)
+
+    # Attempt to fix common UTF-8/CP1252 mojibake (e.g., Ã¤ → ä)
+    if any(ch in cleaned for ch in ("Ã", "Â", "â")):
+        def _reduce_mojibake(s: str) -> str:
+            score = s.count("Ã") + s.count("Â") + s.count("â")
+            for enc in ("cp1252", "latin1"):
+                try:
+                    cand = s.encode(enc, errors="ignore").decode("utf-8", errors="ignore")
+                    cand_score = cand.count("Ã") + cand.count("Â") + cand.count("â")
+                    if cand_score < score:
+                        s, score = cand, cand_score
+                except Exception:
+                    pass
+            return s
+        cleaned = _reduce_mojibake(cleaned)
+
+    # Compose again to be safe
+    cleaned = unicodedata.normalize("NFC", cleaned)
+
+    # Collapse multiple spaces introduced by cleanup
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    return cleaned
 
 def load_env():
     load_dotenv()
     return os.getenv("AZURE_STORAGE_CONNECTION_STRING"), os.getenv("AZURE_STORAGE_CONTAINER_NAME")
 
-def load_azure_openai():
+def load_azure_openai() -> tuple[str, str, str | None, str]:
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
     azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     api_version = os.getenv("AZURE_OPENAI_API_VERSION")
@@ -32,7 +95,10 @@ def load_azure_openai():
     if not all([api_key, azure_endpoint, deployment_name]):
         raise ValueError("Bitte stellen Sie sicher, dass AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT und der Deployment-Name gesetzt sind.")
     
-    return api_key, azure_endpoint, api_version, deployment_name
+    # At this point, mypy/pyright can treat these as non-optional
+    azure_api_key: str = api_key  # type: ignore[assignment]
+    azure_endpoint_str: str = azure_endpoint  # type: ignore[assignment]
+    return azure_api_key, azure_endpoint_str, api_version, deployment_name
 
 
 
@@ -56,18 +122,20 @@ def load_documents():
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             try:
-                blob_client = container_client.get_blob_client(blob)
+                blob_client = container_client.get_blob_client(blob.name)
                 downloader = blob_client.download_blob()
                 temp_file.write(downloader.readall())
                 temp_file_path = temp_file.name
 
-                loader = PyPDFLoader(temp_file_path)
-                pages = loader.load_and_split()
+                loader = PyPDFium2Loader(temp_file_path)
+                pages = loader.load()
                 
                 # ✨ DAS I-TÜPFELCHEN: KORRIGIERE DIE QUELLE ✨
                 # Gehe durch jede geladene Seite und ersetze die temporäre Quelle
                 # durch den echten Dateinamen aus Azure.
                 for page in pages:
+                    # Sanitize extracted text to fix umlauts and spacing issues
+                    page.page_content = sanitize_text(page.page_content)
                     page.metadata["source"] = blob.name
                 
                 all_docs.extend(pages)
@@ -91,6 +159,8 @@ def split_documents(docs: list[Document]) -> list[Document]:
 
     # 2. Durch die Chunks iterieren und ihre Metadaten direkt bearbeiten
     for i, chunk in enumerate(chunks):
+        # Ensure each chunk's content is sanitized (in case of external loaders)
+        chunk.page_content = sanitize_text(chunk.page_content)
         source = chunk.metadata.get('source', 'Unbekannte Quelle')
         source_filename = os.path.basename(source)
         page_num = chunk.metadata.get('page', chunk.metadata.get('page_number', 0))

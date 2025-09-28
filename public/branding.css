@@ -1,0 +1,194 @@
+/* Global branding overrides for Chainlit */
+:root {
+  --brand-logo: url('/public/spitznerloading.jpeg');
+  /* Brand: #17225a */
+  --brand-primary: #17225a;
+  --brand-primary-hover: #121b48;
+  --brand-ring: rgba(23, 34, 90, 0.35);
+}
+
+/* Header brand logo */
+[data-cy='header'] img, 
+.cl-logo img, 
+.cl-header img {
+  content: var(--brand-logo);
+}
+
+/* Avatar fallbacks */
+.cl-avatar img {
+  content: var(--brand-logo);
+}
+
+/* Message sender avatars */
+[data-cy='conversation'] .cl-message .cl-avatar img {
+  content: var(--brand-logo);
+}
+
+/* Login page background/logo if present */
+.cl-login img, .cl-login .cl-logo img {
+  content: var(--brand-logo);
+}
+
+/* As a hard fallback, inject background image on header brand container */
+.cl-logo, [data-cy='header'] .cl-logo {
+  background-image: var(--brand-logo);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Hide default img if background used */
+.cl-logo img {
+  opacity: 0;
+}
+
+/* Reliable overrides to ensure logo everywhere */
+.cl-logo img { display: none !important; }
+.cl-logo,
+[data-cy='header'] .cl-logo {
+  background-image: url('/public/spitznerloading.jpeg') !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  min-height: 28px;
+}
+
+.cl-avatar img { display: none !important; }
+.cl-avatar {
+  background-image: url('/public/spitznerloading.jpeg') !important;
+  background-size: cover;
+  background-position: center;
+}
+
+.cl-login .cl-logo img { display: none !important; }
+.cl-login .cl-logo {
+  background-image: url('/public/spitznerloading.jpeg') !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Accent color overrides */
+button,
+.cl-button,
+[data-cy='send-button'],
+[data-cy*='button'],
+.btn,
+.cl-primary {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #fff !important;
+}
+
+button:hover,
+.cl-button:hover,
+[data-cy='send-button']:hover,
+[data-cy*='button']:hover,
+.btn:hover,
+.cl-primary:hover {
+  background-color: var(--brand-primary-hover) !important;
+  border-color: var(--brand-primary-hover) !important;
+}
+
+/* Links and interactive accents */
+a,
+.text-primary,
+.link {
+  color: var(--brand-primary) !important;
+}
+a:hover,
+.link:hover {
+  color: var(--brand-primary-hover) !important;
+}
+
+/* Focus rings and inputs */
+input:focus,
+textarea:focus,
+select:focus,
+.focus-ring,
+[data-cy*='input']:focus {
+  outline-color: var(--brand-ring) !important;
+  box-shadow: 0 0 0 3px var(--brand-ring) !important;
+  border-color: var(--brand-primary) !important;
+}
+
+/* Floating upload button (pink circle in UI) */
+[data-cy='uploader-fab'],
+[data-cy*='upload'] button,
+.cl-floating-action-button,
+.cl-fab {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #fff !important;
+}
+[data-cy='uploader-fab']:hover,
+[data-cy*='upload'] button:hover,
+.cl-floating-action-button:hover,
+.cl-fab:hover {
+  background-color: var(--brand-primary-hover) !important;
+  border-color: var(--brand-primary-hover) !important;
+}
+
+/* Replace loading spinner with brand image */
+.cl-spinner svg,
+.cl-loader svg,
+.cl-page-loader svg,
+.cl-spinner .spinner,
+.cl-loader .spinner,
+.cl-page-loader .spinner,
+svg.animate-spin {
+  display: none !important;
+}
+
+.cl-spinner,
+.cl-loader,
+.cl-page-loader,
+[data-cy='loader'] {
+  width: 56px;
+  height: 56px;
+  background-image: url('/public/spitznerloading.jpeg') !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+
+/* Remove chat UI entirely */
+.cl-conversation,
+[data-cy='conversation'],
+.cl-message-list,
+.cl-thread,
+[data-cy='composer'],
+[data-cy='input-box'],
+[data-cy='send-button'],
+[data-cy='stop-button'],
+[data-cy='clear-button'],
+[data-cy='upload-input'],
+.cl-chat-input,
+.cl-composer,
+.cl-footer,
+.cl-input {
+  display: none !important;
+}
+
+/* Force-hide conversation with high specificity as fallback */
+[data-cy='conversation'],
+[data-cy='conversation'] *,
+[data-cy*='messages'],
+[data-cy*='messages'] *,
+.cl-conversation,
+.cl-conversation *,
+.cl-message-list,
+.cl-message-list *,
+[id*='conversation'],
+[id*='conversation'] *,
+[class*='Conversation'],
+[class*='MessageList'] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
