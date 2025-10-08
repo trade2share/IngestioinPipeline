@@ -153,42 +153,5 @@ svg.animate-spin {
 }
 
 
-/* Remove chat UI entirely */
-.cl-conversation,
-[data-cy='conversation'],
-.cl-message-list,
-.cl-thread,
-[data-cy='composer'],
-[data-cy='input-box'],
-[data-cy='send-button'],
-[data-cy='stop-button'],
-[data-cy='clear-button'],
-[data-cy='upload-input'],
-.cl-chat-input,
-.cl-composer,
-.cl-footer,
-.cl-input {
-  display: none !important;
-}
-
-/* Force-hide conversation with high specificity as fallback */
-[data-cy='conversation'],
-[data-cy='conversation'] *,
-[data-cy*='messages'],
-[data-cy*='messages'] *,
-.cl-conversation,
-.cl-conversation *,
-.cl-message-list,
-.cl-message-list *,
-[id*='conversation'],
-[id*='conversation'] *,
-[class*='Conversation'],
-[class*='MessageList'] {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
+/* Chat UI is visible by default; no hiding rules */
 
