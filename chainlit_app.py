@@ -14,8 +14,9 @@ def get_env_status_markdown() -> str:
     container = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
     azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
     azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    pinecone_key = os.getenv("PINECONE_API_KEY")
-    pinecone_index = os.getenv("PINECONE_INDEX_NAME")
+    azure_ai_search_service = os.getenv("AZURE_AI_SEARCH_SERVICE_NAME")
+    azure_ai_search_index = os.getenv("AZURE_AI_SEARCH_INDEX_NAME")
+    azure_ai_search_api_key = os.getenv("AZURE_AI_SEARCH_API_KEY")
 
     status_lines = [
         "### Konfiguration",
@@ -23,8 +24,9 @@ def get_env_status_markdown() -> str:
         f"   Container: `{container}`" if container else "  - Container: `-`",
         f" **Azure OpenAI**: {' konfiguriert' if azure_openai_key and azure_openai_endpoint else ' fehlt'}",
         f"  Endpoint: `{(azure_openai_endpoint[:50] + '...') if azure_openai_endpoint else '-'}`",
-        f" **Pinecone**: {' konfiguriert' if pinecone_key and pinecone_index else ' fehlt'}",
-        f"   Index: `{pinecone_index or '-'}`",
+        f" **Azure AI Search**: {' konfiguriert' if azure_ai_search_service and azure_ai_search_index else ' fehlt'}",
+        f"   Service: `{azure_ai_search_service or '-'}`",
+        f"   Index: `{azure_ai_search_index or '-'}`",
     ]
     return "\n".join(status_lines)
 
@@ -35,15 +37,16 @@ def validate_required_env() -> tuple[bool, str]:
     container = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
     azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
     azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    pinecone_key = os.getenv("PINECONE_API_KEY")
-    pinecone_index = os.getenv("PINECONE_INDEX_NAME")
+    azure_ai_search_service = os.getenv("AZURE_AI_SEARCH_SERVICE_NAME")
+    azure_ai_search_index = os.getenv("AZURE_AI_SEARCH_INDEX_NAME")
+    azure_ai_search_api_key = os.getenv("AZURE_AI_SEARCH_API_KEY")
 
     if not conn_str or not container:
         return False, "Azure Storage nicht konfiguriert (AZURE_STORAGE_CONNECTION_STRING, AZURE_STORAGE_CONTAINER_NAME)"
     if not azure_openai_key or not azure_openai_endpoint:
         return False, "Azure OpenAI nicht konfiguriert (AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT)"
-    if not pinecone_key or not pinecone_index:
-        return False, "Pinecone nicht konfiguriert (PINECONE_API_KEY, PINECONE_INDEX_NAME)"
+    if not azure_ai_search_service or not azure_ai_search_index or not azure_ai_search_api_key:
+        return False, "Azure AI Search nicht konfiguriert (AZURE_AI_SEARCH_SERVICE_NAME, AZURE_AI_SEARCH_INDEX_NAME, AZURE_AI_SEARCH_API_KEY)"
     return True, ""
 
 
@@ -85,6 +88,7 @@ async def start_chat():
             cl.Action(
                 name="start_pipeline",
                 label="Pipeline starten",
+                value="start",
                 payload={"command": "start"},
                 description="Indizierung starten",
             ),
